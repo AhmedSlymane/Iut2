@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - UIT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.6s ease-out',
+                        'fade-in': 'fadeIn 0.8s ease-out',
+                        'slide-in': 'slideIn 0.3s ease-out',
+                        'progress': 'progress 2s ease-out',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(30px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateX(-100%)' },
+                            '100%': { transform: 'translateX(0)' },
+                        },
+                        progress: {
+                            '0%': { width: '0%' },
+                            '100%': { width: 'var(--progress-width)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .progress-bar {
+            animation: progress 2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="dashboardApp()">
+    <!-- Sidebar -->
+    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out" 
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
+        
+        <!-- Logo -->
+        <div class="flex items-center justify-center h-20 border-b border-gray-200">
+            <div class="flex items-center">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">U</span>
+                </div>
+                <div class="ml-3">
+                    <div class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">UIT</div>
+                    <div class="text-xs text-gray-500 -mt-1">Dashboard</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="mt-8 px-4">
+            <div class="space-y-2">
+                <template x-for="item in navigationItems" :key="item.id">
+                    <button 
+                        @click="activeTab = item.id"
+                        :class="activeTab === item.id ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-gray-700 hover:bg-gray-100'"
+                        class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105"
+                    >
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon"></path>
+                        </svg>
+                        <span x-text="item.name"></span>
+                    </button>
+                </template>
+            </div>
+        </nav>
+
+        <!-- User Profile -->
+        <div class="absolute bottom-0 w-full p-4 border-t border-gray-200">
+            <div class="flex items-center">
+                <img src="/placeholder.svg?height=40&width=40" alt="Profile" class="w-10 h-10 rounded-full">
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-900" x-text="userInfo.name"></p>
+                    <p class="text-xs text-gray-500" x-text="userInfo.role"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="lg:ml-64">
+        <!-- Top Bar -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div class="flex items-center">
+                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h1 class="ml-4 text-2xl font-bold text-gray-900" x-text="currentTabName"></h1>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Notifications -->
+                    <button @click="showNotifications = !showNotifications" class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
+                    </button>
+                    
+                    <!-- Profile Menu -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
+                            <img src="/placeholder.svg?height=32&width=32" alt="Profile" class="w-8 h-8 rounded-full">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2">
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mon Profil</a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Paramètres</a>
+                            <hr class="my-2">
+                            <a href="/login.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Déconnexion</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <main class="p-6">
+            <!-- Overview Tab -->
+            <div x-show="activeTab === 'overview'" class="space-y-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <template x-for="stat in stats" :key="stat.title">
+                        <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 animate-fade-in-up">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600" x-text="stat.title"></p>
+                                    <p class="text-3xl font-bold text-gray-900" x-text="stat.value"></p>
+                                    <p class="text-sm" :class="stat.change > 0 ? 'text-green-600' : 'text-red-600'">
+                                        <span x-text="stat.change > 0 ? '+' + stat.change : stat.change"></span>% ce mois
+                                    </p>
+                                </div>
+                                <div :class="stat.color" class="p-3 rounded-2xl">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="stat.icon"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Progress Chart -->
+                    <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Progression des candidatures</h3>
+                        <div class="space-y-4">
+                            <template x-for="progress in progressData" :key="progress.label">
+                                <div>
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700" x-text="progress.label"></span>
+                                        <span class="text-sm text-gray-500" x-text="progress.value + '%'"></span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div 
+                                            :class="progress.color" 
+                                            class="h-3 rounded-full progress-bar"
+                                            :style="`--progress-width: ${progress.value}%`"
+                                        ></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Activity Feed -->
+                    <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Activité récente</h3>
+                        <div class="space-y-4">
+                            <template x-for="activity in recentActivity" :key="activity.id">
+                                <div class="flex items-start space-x-3">
+                                    <div :class="activity.color" class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="activity.icon"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm text-gray-900" x-text="activity.message"></p>
+                                        <p class="text-xs text-gray-500" x-text="activity.time"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications Tab -->
+            <div x-show="activeTab === 'applications'" class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-900">Mes candidatures</h2>
+                    <button @click="showApplicationModal = true" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        Nouvelle candidature
+                    </button>
+                </div>
+
+                <!-- Applications Table -->
+                <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entreprise</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="application in applications" :key="application.id">
+                                    <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900" x-text="application.stage"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900" x-text="application.company"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span 
+                                                :class="getStatusColor(application.status)"
+                                                class="inline-flex px-3 py-1 rounded-full text-xs font-medium"
+                                                x-text="application.status"
+                                            ></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="application.date"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button @click="viewApplication(application)" class="text-blue-600 hover:text-blue-900 mr-3">Voir</button>
+                                            <button @click="editApplication(application)" class="text-green-600 hover:text-green-900">Modifier</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Tab -->
+            <div x-show="activeTab === 'messages'" class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-900">Messages</h2>
+                    <button @click="showMessageModal = true" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        Nouveau message
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Messages List -->
+                    <div class="lg:col-span-1 bg-white rounded-3xl shadow-lg border border-gray-100 p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Conversations</h3>
+                        <div class="space-y-3">
+                            <template x-for="message in messages" :key="message.id">
+                                <div 
+                                    @click="selectedMessage = message"
+                                    :class="selectedMessage?.id === message.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'"
+                                    class="p-3 rounded-xl border border-gray-100 cursor-pointer transition-all duration-200"
+                                >
+                                    <div class="flex items-center space-x-3">
+                                        <img :src="message.avatar" :alt="message.sender" class="w-10 h-10 rounded-full">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900" x-text="message.sender"></p>
+                                            <p class="text-xs text-gray-500 truncate" x-text="message.preview"></p>
+                                        </div>
+                                        <div class="text-xs text-gray-400" x-text="message.time"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Message Content -->
+                    <div class="lg:col-span-2 bg-white rounded-3xl shadow-lg border border-gray-100 p-6">
+                        <div x-show="selectedMessage" class="h-96 flex flex-col">
+                            <div class="flex items-center justify-between border-b border-gray-200 pb-4 mb-4">
+                                <div class="flex items-center space-x-3">
+                                    <img :src="selectedMessage?.avatar" :alt="selectedMessage?.sender" class="w-10 h-10 rounded-full">
+                                    <div>
+                                        <p class="font-medium text-gray-900" x-text="selectedMessage?.sender"></p>
+                                        <p class="text-sm text-gray-500" x-text="selectedMessage?.subject"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 overflow-y-auto mb-4">
+                                <div class="prose max-w-none">
+                                    <p x-text="selectedMessage?.content"></p>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-gray-200 pt-4">
+                                <div class="flex space-x-3">
+                                    <input type="text" placeholder="Tapez votre réponse..." class="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl transition-colors duration-300">
+                                        Envoyer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div x-show="!selectedMessage" class="h-96 flex items-center justify-center text-gray-500">
+                            Sélectionnez une conversation pour voir les messages
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div x-show="activeTab === 'settings'" class="space-y-6">
+                <h2 class="text-2xl font-bold text-gray-900">Paramètres</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Profile Settings -->
+                    <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Informations personnelles</h3>
+                        <form class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
+                                <input type="text" x-model="userInfo.name" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" x-model="userInfo.email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+                                <input type="tel" x-model="userInfo.phone" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-medium transition-all duration-300">
+                                Sauvegarder
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Notification Settings -->
+                    <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Notifications</h3>
+                        <div class="space-y-4">
+                            <template x-for="setting in notificationSettings" :key="setting.id">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900" x-text="setting.title"></p>
+                                        <p class="text-xs text-gray-500" x-text="setting.description"></p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" x-model="setting.enabled" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Application Modal -->
+    <div x-show="showApplicationModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showApplicationModal = false"></div>
+            
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-6 pt-6 pb-4">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-bold text-gray-900">Nouvelle candidature</h3>
+                        <button @click="showApplicationModal = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <form @submit.prevent="submitApplication()" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Stage</label>
+                            <select x-model="newApplication.stage" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Sélectionner un stage</option>
+                                <option value="Développement Web">Développement Web</option>
+                                <option value="Mobile Flutter">Mobile Flutter</option>
+                                <option value="Data Science">Data Science</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Lettre de motivation</label>
+                            <textarea x-model="newApplication.motivation" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Expliquez votre motivation..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CV (PDF)</label>
+                            <input type="file" accept=".pdf" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex space-x-3 pt-4">
+                            <button type="button" @click="showApplicationModal = false" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium transition-colors duration-300">
+                                Annuler
+                            </button>
+                            <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-medium transition-all duration-300">
+                                Envoyer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div x-show="showMessageModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showMessageModal = false"></div>
+            
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-6 pt-6 pb-4">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-bold text-gray-900">Nouveau message</h3>
+                        <button @click="showMessageModal = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <form @submit.prevent="sendMessage()" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Destinataire</label>
+                            <select x-model="newMessage.recipient" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Sélectionner un destinataire</option>
+                                <option value="TechCorp Solutions">TechCorp Solutions</option>
+                                <option value="MobileTech">MobileTech</option>
+                                <option value="DataCorp">DataCorp</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sujet</label>
+                            <input type="text" x-model="newMessage.subject" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Sujet du message">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                            <textarea x-model="newMessage.content" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Votre message..."></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-3 pt-4">
+                            <button type="button" @click="showMessageModal = false" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium transition-colors duration-300">
+                                Annuler
+                            </button>
+                            <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-medium transition-all duration-300">
+                                Envoyer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div x-show="showNotifications" x-cloak class="fixed top-20 right-4 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Notifications</h3>
+                <button @click="showNotifications = false" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                <template x-for="notification in notifications" :key="notification.id">
+                    <div class="p-3 bg-gray-50 rounded-xl">
+                        <p class="text-sm font-medium text-gray-900" x-text="notification.title"></p>
+                        <p class="text-xs text-gray-600" x-text="notification.message"></p>
+                        <p class="text-xs text-gray-400 mt-1" x-text="notification.time"></p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function dashboardApp() {
+            return {
+                sidebarOpen: false,
+                activeTab: 'overview',
+                showApplicationModal: false,
+                showMessageModal: false,
+                showNotifications: false,
+                selectedMessage: null,
+                
+                userInfo: {
+                    name: 'Ahmed Ben Ali',
+                    role: 'Étudiant DUT 2',
+                    email: 'ahmed.benali@uit.tn',
+                    phone: '+216 XX XXX XXX'
+                },
+                
+                navigationItems: [
+                    { id: 'overview', name: 'Tableau de bord', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z' },
+                    { id: 'applications', name: 'Candidatures', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+                    { id: 'messages', name: 'Messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                    { id: 'settings', name: 'Paramètres', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
+                ],
+                
+                stats: [
+                    { title: 'Candidatures envoyées', value: '12', change: 8, color: 'bg-gradient-to-r from-blue-500 to-blue-600', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+                    { title: 'Entretiens programmés', value: '3', change: 15, color: 'bg-gradient-to-r from-green-500 to-green-600', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                    { title: 'Messages reçus', value: '8', change: -5, color: 'bg-gradient-to-r from-purple-500 to-purple-600', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                    { title: 'Profil consulté', value: '24', change: 12, color: 'bg-gradient-to-r from-orange-500 to-orange-600', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z' }
+                ],
+                
+                progressData: [
+                    { label: 'CV complété', value: 85, color: 'bg-gradient-to-r from-blue-500 to-blue-600' },
+                    { label: 'Profil optimisé', value: 70, color: 'bg-gradient-to-r from-green-500 to-green-600' },
+                    { label: 'Candidatures actives', value: 60, color: 'bg-gradient-to-r from-purple-500 to-purple-600' },
+                    { label: 'Réponses reçues', value: 40, color: 'bg-gradient-to-r from-orange-500 to-orange-600' }
+                ],
+                
+                recentActivity: [
+                    { id: 1, message: 'Nouvelle candidature envoyée à TechCorp', time: 'Il y a 2h', color: 'bg-blue-500', icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6' },
+                    { id: 2, message: 'Entretien programmé avec MobileTech', time: 'Il y a 4h', color: 'bg-green-500', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                    { id: 3, message: 'Message reçu de DataCorp', time: 'Il y a 6h', color: 'bg-purple-500', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                    { id: 4, message: 'Profil consulté par 3 entreprises', time: 'Il y a 1j', color: 'bg-orange-500', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z' }
+                ],
+                
+                applications: [
+                    { id: 1, stage: 'Développement Web', company: 'TechCorp Solutions', status: 'En attente', date: '15 Fév 2024' },
+                    { id: 2, stage: 'Mobile Flutter', company: 'MobileTech', status: 'Acceptée', date: '12 Fév 2024' },
+                    { id: 3, stage: 'Data Science', company: 'DataCorp', status: 'Refusée', date: '10 Fév 2024' },
+                    { id: 4, stage: 'UX/UI Design', company: 'DesignStudio', status: 'Entretien', date: '08 Fév 2024' }
+                ],
+                
+                messages: [
+                    { id: 1, sender: 'TechCorp Solutions', subject: 'Candidature reçue', preview: 'Nous avons bien reçu votre candidature...', time: '14:30', avatar: '/placeholder.svg?height=40&width=40', content: 'Bonjour Ahmed, nous avons bien reçu votre candidature pour le poste de développeur web. Votre profil nous intéresse et nous souhaitons programmer un entretien avec vous.' },
+                    { id: 2, sender: 'MobileTech', subject: 'Entretien programmé', preview: 'Votre entretien est programmé pour...', time: '12:15', avatar: '/placeholder.svg?height=40&width=40', content: 'Félicitations ! Votre entretien est programmé pour le 20 février à 14h00. Merci de confirmer votre présence.' },
+                    { id: 3, sender: 'DataCorp', subject: 'Mise à jour candidature', preview: 'Nous vous informons que...', time: '10:45', avatar: '/placeholder.svg?height=40&width=40', content: 'Nous vous remercions pour votre candidature. Malheureusement, nous ne pouvons pas donner suite à votre demande pour cette fois.' }
+                ],
+                
+                notifications: [
+                    { id: 1, title: 'Nouvelle candidature', message: 'Votre candidature a été envoyée avec succès', time: 'Il y a 1h' },
+                    { id: 2, title: 'Message reçu', message: 'TechCorp Solutions vous a envoyé un message', time: 'Il y a 2h' },
+                    { id: 3, title: 'Entretien programmé', message: 'Entretien avec MobileTech le 20/02 à 14h', time: 'Il y a 4h' }
+                ],
+                
+                notificationSettings: [
+                    { id: 1, title: 'Nouvelles candidatures', description: 'Recevoir des notifications pour les nouvelles candidatures', enabled: true },
+                    { id: 2, title: 'Messages', description: 'Recevoir des notifications pour les nouveaux messages', enabled: true },
+                    { id: 3, title: 'Entretiens', description: 'Recevoir des rappels pour les entretiens', enabled: true },
+                    { id: 4, title: 'Newsletter', description: 'Recevoir la newsletter hebdomadaire', enabled: false }
+                ],
+                
+                newApplication: {
+                    stage: '',
+                    motivation: ''
+                },
+                
+                newMessage: {
+                    recipient: '',
+                    subject: '',
+                    content: ''
+                },
+                
+                get currentTabName() {
+                    const tab = this.navigationItems.find(item => item.id === this.activeTab);
+                    return tab ? tab.name : 'Dashboard';
+                },
+                
+                getStatusColor(status) {
+                    switch(status) {
+                        case 'En attente': return 'bg-yellow-100 text-yellow-800';
+                        case 'Acceptée': return 'bg-green-100 text-green-800';
+                        case 'Refusée': return 'bg-red-100 text-red-800';
+                        case 'Entretien': return 'bg-blue-100 text-blue-800';
+                        default: return 'bg-gray-100 text-gray-800';
+                    }
+                },
+                
+                viewApplication(application) {
+                    alert(`Voir les détails de la candidature: ${application.stage}`);
+                },
+                
+                editApplication(application) {
+                    alert(`Modifier la candidature: ${application.stage}`);
+                },
+                
+                submitApplication() {
+                    // Simulation d'envoi de candidature
+                    this.applications.unshift({
+                        id: this.applications.length + 1,
+                        stage: this.newApplication.stage,
+                        company: 'Nouvelle Entreprise',
+                        status: 'En attente',
+                        date: new Date().toLocaleDateString('fr-FR')
+                    });
+                    
+                    this.newApplication = { stage: '', motivation: '' };
+                    this.showApplicationModal = false;
+                    
+                    // Ajouter une notification
+                    this.notifications.unshift({
+                        id: this.notifications.length + 1,
+                        title: 'Candidature envoyée',
+                        message: `Votre candidature pour ${this.newApplication.stage} a été envoyée`,
+                        time: 'À l\'instant'
+                    });
+                },
+                
+                sendMessage() {
+                    // Simulation d'envoi de message
+                    this.messages.unshift({
+                        id: this.messages.length + 1,
+                        sender: this.newMessage.recipient,
+                        subject: this.newMessage.subject,
+                        preview: this.newMessage.content.substring(0, 50) + '...',
+                        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                        avatar: '/placeholder.svg?height=40&width=40',
+                        content: this.newMessage.content
+                    });
+                    
+                    this.newMessage = { recipient: '', subject: '', content: '' };
+                    this.showMessageModal = false;
+                    
+                    // Ajouter une notification
+                    this.notifications.unshift({
+                        id: this.notifications.length + 1,
+                        title: 'Message envoyé',
+                        message: `Votre message a été envoyé à ${this.newMessage.recipient}`,
+                        time: 'À l\'instant'
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
